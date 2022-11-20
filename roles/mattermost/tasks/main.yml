@@ -1,0 +1,54 @@
+---
+# tasks file for mattermost
+
+# Создание директорий для volumes PostgreSQL
+- name: Create directory for Postgres volumes
+  file: path={{ item.path }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }} state=directory
+  loop:
+    - { path: "/postgres_mattermost/data", owner: "{{ user }}", group: "{{ user }}", mode: "755" }
+
+# Создание директорий для volumes Mattermost
+- name: Create directory for Mattermost volumes
+  file: path={{ item.path }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }} state=directory
+  loop:
+    - { path: "/mattermost", owner: "2000", group: "2000", mode: "755" }
+    - { path: "/mattermost/data", owner: "2000", group: "2000", mode: "755" }
+    - { path: "/mattermost/config", owner: "2000", group: "2000", mode: "755" }
+    - { path: "/mattermost/logs", owner: "2000", group: "2000", mode: "755" }
+    - { path: "/mattermost/plugins", owner: "2000", group: "2000", mode: "755" }
+    - { path: "/mattermost/bleve-indexes", owner: "2000", group: "2000", mode: "755" }
+
+# Создание и запуск docker-compose файла
+- name: Gitlab docker-compose
+  community.docker.docker_compose:
+    project_name: Mattermost
+    definition:
+      version: '2.4'
+      services:
+        postgres:
+          image: '{{ postgres.image }}'
+          restart: unless-stopped
+          volumes:
+            - /postgres_mattermost/data:/var/lib/postgresql/data
+          environment:
+            - POSTGRES_USER={{ postgres.user }}
+            - POSTGRES_PASSWORD={{ postgres.password }}
+            - POSTGRES_DB={{ postgres.database }}
+
+        mattermost:
+          depends_on:
+            - postgres
+          image: '{{ mattermost.image }}'
+          restart: unless-stopped
+          ports:
+            - '{{ mattermost.port }}:8065'
+          volumes:
+            - /mattermost/config:/mattermost/config:rw
+            - /mattermost/data:/mattermost/data:rw
+            - /mattermost/logs:/mattermost/logs:rw
+            - /mattermost/plugins:/mattermost/plugins:rw
+            - /mattermost/bleve-indexes:/mattermost/bleve-indexes:rw
+          environment:
+            - MM_SQLSETTINGS_DRIVERNAME=postgres
+            - MM_SQLSETTINGS_DATASOURCE=postgres://{{ postgres.user }}:{{ postgres.password }}@postgres:5432/{{ postgres.database }}?sslmode=disable&connect_timeout=10
+            - MM_SERVICESETTINGS_SITEURL=http://localhost:8065

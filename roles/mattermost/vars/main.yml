@@ -1,0 +1,14 @@
+---
+# vars file for mattermost
+
+postgres:
+  image: postgres:latest
+  user: student
+  password: Secret13
+  database: mattermost
+
+mattermost:
+  image: mattermost/mattermost-team-edition:latest
+  port: 8065
+
+user: butovoboy

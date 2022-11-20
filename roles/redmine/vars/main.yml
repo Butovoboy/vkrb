@@ -1,0 +1,16 @@
+---
+# vars file for redmine
+
+postgres:
+  image: postgres:latest
+  user: student
+  password: Secret13
+  database: redmine
+
+redmine:
+  image: redmine:latest
+  port: 3000
+
+repository_name: test-project2
+
+user: butovoboy

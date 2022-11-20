@@ -1,0 +1,101 @@
+---
+# tasks file for redmine
+
+# Создание директорий для volumes Postgres
+- name: Create directory for Postgres volumes
+  file: path={{ item.path }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }} state=directory
+  loop:
+    - { path: "/postgres_redmine/data", owner: "{{ user }}", group: "{{ user }}", mode: "755" }
+
+# Создание директорий для volumes Redmine
+- name: Create files for Redmine volumes
+  file: path={{ item.path }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }} state=directory
+  loop:
+    - { path: "/redmine/redmine-data", owner: "{{ user }}", group: "{{ user }}", mode: "755" }
+    - { path: "/redmine/redmine-plugins", owner: "{{ user }}", group: "{{ user }}", mode: "755" }
+    - { path: "/redmine/gitlab-repos", owner: "{{ user }}", group: "{{ user }}", mode: "755" }
+    - { path: "/redmine/git", owner: "{{ user }}", group: "{{ user }}", mode: "755" }
+
+- name: Copy files to Redmine folders
+  copy: src={{ item.src }} dest={{ item.dest }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }}
+  loop:
+    - { src: "git-creds", dest: "/redmine/git/git-creds", owner: "{{ user }}", group: "{{ user }}", mode: "644" }
+    - { src: "git-config", dest: "/redmine/git/git-config", owner: "{{ user }}", group: "{{ user }}", mode: "644" }
+    - { src: "git-creds", dest: "/home/{{ user }}/.git-credentials", owner: "{{ user }}", group: "{{ user }}", mode: "600" }
+    - { src: "git-config", dest: "/home/{{ user }}/.gitconfig", owner: "{{ user }}", group: "{{ user }}", mode: "600" }
+    - { src: "git-creds", dest: "/root/.git-credentials", owner: "root", group: "root", mode: "600" }
+    - { src: "git-config", dest: "/root/.gitconfig", owner: "root", group: "root", mode: "600" }
+
+- name: Clone plugins to redmine
+  become: yes
+  become_user: '{{ user }}'
+  git: repo={{ item.repo }} dest={{ item.dest }}
+  loop:
+    - { repo: "https://github.com/phlegx/redmine_gitlab_hook.git", dest: "/redmine/redmine-plugins/redmine_gitlab_hook" }
+
+- name: Clone projects to redmine
+  become: yes
+  become_user: '{{ user }}'
+  git: repo={{ item.repo }} dest={{ item.dest }}
+  loop:
+    - { repo: "http://192.168.55.219:8080/test-group/test-project.git", dest: "/redmine/gitlab-repos/test-project" }
+  ignore_errors: yes
+
+# Внесение репозитория в список доверенных репозиторев, чтобы root мог делать git merge
+- name: make reposytory safe
+  blockinfile: 
+    block: |
+      [safe]
+          "git config --global --add safe.directory /redmine/gitlab-repos/test-project"
+          "git config --global --add safe.directory /redmine/gitlab-repos/test-project2"
+    path: /root/.gitconfig
+  ignore_errors: yes
+
+# Создание и запуск docker-compose файла
+- name: Gitlab docker-compose
+  community.docker.docker_compose:
+    project_name: Gitlab
+    definition:
+      version: '3.7'
+      services:
+        postgres:
+          image: '{{ postgres.image }}'
+          restart: always
+          volumes:
+            - /postgres_redmine/data:/var/lib/postgresql/data
+          environment:
+            - 'POSTGRES_PASSWORD={{ postgres.password }}'
+            - 'POSTGRES_DB={{ postgres.database }}'
+
+        redmine:
+          image: '{{ redmine.image }}'
+          restart: always
+          volumes:
+            - /redmine/redmine-data:/usr/src/redmine/files
+            - /redmine/redmine-plugins:/usr/src/redmine/plugins
+            - /redmine/gitlab-repos:/home/redmine/gitlab-repos
+            - /redmine/git/git-creds:/home/redmine/.git-credentials
+            - /redmine/git/git-config:/home/redmine/.gitconfig
+          ports:
+            - '{{ redmine.port }}:3000'
+          environment:
+            - 'REDMINE_DB_POSTGRES=postgres'
+            - 'REDMINE_DB_DATABASE={{ postgres.database }}'
+            - 'REDMINE_DB_PASSWORD={{ postgres.password }}'
+            - 'REDMINE_PLUGINS_MIGRATE=true'
+
+# Назначения пользователя с ID=999 (то есть равным ID Redmine внутри контейнера) владельцем директории
+- name: make user with id 999 owner of directory gitlab-repos
+  file:
+    path: "/redmine/gitlab-repos/"
+    recurse: yes
+    owner: systemd-coredump
+    group: systemd-coredump
+
+# Создание крон-джобы, которая будет триггерить скрипт каждую минуту
+- name: Create cron job to trigger gitmerge.sh every minute
+  cron:
+    user: 'systemd-coredump'
+    name: "gitmerge1"
+    job: "find /redmine/gitlab-repos/ -mindepth 1 -maxdepth 1 -type d -print0 | parallel -0 cd {}'&&' git merge"
+

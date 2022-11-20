@@ -1,0 +1,8 @@
+---
+# tasks file for prerequisites
+
+- import_tasks: "createUser.yml"
+
+- import_tasks: "installDocker.yml"
+
+- import_tasks: "installPip.yml"

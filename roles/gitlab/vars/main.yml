@@ -1,0 +1,11 @@
+---
+# vars file for gitlab
+
+gitlab:
+  image: gitlab/gitlab-ce:latest
+  external_url: http://localhost
+  ports:
+    http: 8080
+    https: 443
+
+user: butovoboy

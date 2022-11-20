@@ -1,0 +1,48 @@
+---
+# tasks file for gitlab
+
+# Создание директорий для volumes
+- name: Create directory for volumes
+  file: path={{ item.path }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }} state=directory
+  loop:
+    - { path: "/gitlab/data", owner: "{{ user }}", group: "{{ user }}", mode: "755" }
+    - { path: "/gitlab/config", owner: "{{ user }}", group: "{{ user }}", mode: "755" }
+    - { path: "/gitlab/logs", owner: "{{ user }}", group: "{{ user }}", mode: "755" }
+
+# Создание и запуск docker-compose файла
+- name: Gitlab docker-compose
+  community.docker.docker_compose:
+    project_name: Gitlab
+    definition:
+      version: '3.7'
+      services:
+        gitlab:
+          image: '{{ gitlab.image }}'
+          restart: always
+          hostname: 'localhost'
+          container_name: gitlab
+          environment:
+            GITLAB_OMNIBUS_CONFIG: |
+              external_url '{{ gitlab.external_url }}'
+          ports:
+            - '{{ gitlab.ports.http }}:80'
+            - '{{ gitlab.ports.https }}:443'
+          volumes:
+            - '/gitlab/config:/etc/gitlab'
+            - '/gitlab/logs:/var/log/gitlab'
+            - '/gitlab/data:/var/opt/gitlab'
+
+- name: Wait until gitlab starts
+  wait_for:
+    port: '{{ gitlab.ports.http }}'
+    delay: 5
+
+# Получение пароля gitlab
+- name: Get gitlab password
+  community.docker.docker_container_exec:
+    container: gitlab
+    command: /bin/bash -c "grep 'Password:' initial_root_password"
+    chdir: /etc/gitlab
+  register: result
+
+- debug: msg="{{ result.stdout }}"
