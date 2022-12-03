@@ -23,15 +23,15 @@ Vagrant.configure("2") do |config|
         vb.gui = false
       end
       # Specifying ansible playbook for every vagrant node
-   	end
+    end
   end
-#  config.vm.provision "ansible" do |ansible|
-#    ansible.playbook = "stack.yml"
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = "playbook.yml"
 #      ansible.groups = {
 #        "gitlab" => ["butovoboy_vm1"],
 #        "mattermost" => ["butovoboy_vm2"],
 #        "redmine" => ["butovoboy_vm3"],
 #        "all_groups:children" => ["gitlab", "mattermost", "redmine"]
 #      }
-#  end
+  end
 end
