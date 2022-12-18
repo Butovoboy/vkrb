@@ -1,0 +1,5 @@
+---
+# vars file for elastic-kibana
+
+user: elastic
+password: Secret13

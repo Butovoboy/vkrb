@@ -1,0 +1,56 @@
+---
+# tasks file for elastic-kibana
+
+# Создание директорий для volumes
+- name: Create directory for volumes
+  file: path={{ item.path }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }} state=directory
+  loop:
+    - { path: "{{ defaultRepo }}/elasticsearch/config", owner: "1000", group: "1000", mode: "755" }
+    - { path: "{{ defaultRepo }}/kibana/config", owner: "1000", group: "1000", mode: "755" }
+
+
+      #- name: add files
+      #  copy: src={{ item.src }} dest={{ item.dest }} mode={{ item.mode }}
+      #  loop:
+      #    - { src: "elasticsearch.yml", dest: "{{ defaultRepo }}/elasticsearch/elasticsearch.yml", mode: "755" }
+      #
+      #- name: copy libana config
+      #  template:
+      #    src: "kibana.yml.j2"
+      #    dest: "{{ defaultRepo }}/kibana/kibana.yml"
+
+- name: run elastic and kibana
+  docker_compose:
+    project_name: elastic
+    definition:
+      version: '3'
+      services:
+        elasticsearch:
+          image: "{{ elasticsearch.repo }}:{{ elasticsearch.tag }}"
+          restart: unless-stopped
+          ports:
+            - "9200:9200"
+          environment:
+            cluster.name: 'egor-elk-cluster'
+            discovery.type: 'single-node'
+            ELASTIC_PASSWORD: "{{ password }}"
+          volumes:
+            - '{{ defaultRepo }}/docker-data-volumes/elasticsearch:/usr/share/elasricsearch/data'
+        kibana:
+          image: "{{ kibana.repo }}:{{ kibana.tag }}"
+          restart: unless-stopped
+          ports:
+            - "5601:5601"
+          environment:
+            SERVER_NAME: 'egor.kibana'
+            SERVER_HOST: "{{ ansible_default_ipv4.address }}"
+            ELASTICSEARCH_HOSTS: "http://{{ ansible_default_ipv4.address }}:9200"
+            elasticsearch.ssl.verificationMode: 'certificate'
+
+- name: docker network creation
+  docker_network:
+    name: elastic
+    connected:
+      - elastic_elasticsearch_1
+      - elastic_kibana_1
+

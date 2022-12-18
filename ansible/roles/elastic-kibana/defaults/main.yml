@@ -1,0 +1,16 @@
+---
+# defaults file for elastic-kibana
+
+defaultRepo: /opt
+
+elasticsearch:
+  repo: elasticsearch
+  tag: 8.5.3
+
+kibana:
+  repo: kibana
+  tag: 8.5.3
+
+elasticsearch_path: /usr/share/elasticsearch/
+elasticsearch_tls_cert_pass: Secret13
+elasticsearch_certificates_pass: Secret13

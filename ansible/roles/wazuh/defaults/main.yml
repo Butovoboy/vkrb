@@ -1,0 +1,23 @@
+---
+# defaults file for wazuh
+
+password: Secret13
+wazuh_dir: /opt
+
+manager:
+  repo: wazuh/wazuh-manager
+  tag: 4.3.10
+
+generator:
+  repo: wazuh/wazuh-certs-generator
+  tag: 0.0.1
+
+indexer:
+  repo: wazuh/wazuh-indexer
+  tag: 4.3.10
+  login: admin
+  password: Secret13
+
+dashboard:
+  repo: wazuh/wazuh-dashboard
+  tag: 4.3.10
