@@ -19,7 +19,7 @@ Vagrant.configure("2") do |config|
       node.vm.provider 'vmware_desktop' do |vb|
 #        vb.name = "butovoboy-vm#{i}"
         vb.memory = 2048
-        vb.cpus = 2
+        vb.cpus = 1
         vb.gui = false
       end
       # Specifying ansible playbook for every vagrant node

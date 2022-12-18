@@ -1,0 +1,99 @@
+---
+# tasks file for openvpn-client
+
+# Install openvpn to client
+- name: install instruments & plugins
+  apt:
+    name:
+      - openvpn
+  when: inventory_hostname in groups['openvpn-clients']
+
+# Создание запроса подписи сертификата и закрытого ключа клиента
+- name: create crt and private key
+  shell: |
+    /usr/share/easy-rsa/easyrsa gen-req {{ name }} nopass
+  args:
+    chdir: /easy-rsa
+  environment:
+    EASYRSA_BATCH: 1
+  when: inventory_hostname in groups['openvpn-server']
+
+- name: copy client key
+  copy:
+    src: /easy-rsa/pki/private/{{ name }}.key
+    dest: /client-configs/keys
+    remote_src: true
+  when: inventory_hostname in groups['openvpn-server']
+
+# Копирование запроса на подпись в центр сертификации
+- name: fetch request to host
+  fetch:
+    src: /easy-rsa/pki/reqs/{{ name }}.req
+    dest: /tmp/{{ name }}.req
+    flat: yes
+  when: inventory_hostname in groups['openvpn-server']
+
+- name: copy request to host
+  copy:
+    src: /tmp/{{ name }}.req
+    dest: /tmp/{{ name }}.req
+  when: inventory_hostname in groups['ca-server']
+
+# Подпись запроса со стороны центра сертификации
+- name: import request
+  shell: |
+    /usr/share/easy-rsa/easyrsa import-req /tmp/{{ name }}.req {{ name }}
+  args:
+    chdir: /easy-rsa
+  when: inventory_hostname in groups['ca-server']
+
+- name: sign request
+  shell: |
+    /usr/share/easy-rsa/easyrsa sign-req client {{ name }}
+  args:
+    chdir: /easy-rsa
+  environment:
+    EASYRSA_BATCH: 1
+  when: inventory_hostname in groups['ca-server']
+
+# Копирование запроса на подпись в центр сертификации
+- name: fetch request to host
+  fetch:
+    src: /easy-rsa/pki/issued/{{ name }}.crt
+    dest: /tmp/{{ name }}.crt
+    flat: yes
+  when: inventory_hostname in groups['ca-server']
+
+- name: copy request to host
+  copy:
+    src: /tmp/{{ name }}.crt
+    dest: /client-configs/keys/{{ name }}.crt
+  when: inventory_hostname in groups['openvpn-server']
+
+- name: create certificate
+  script: make_config.sh {{ name }}
+  args:
+    chdir: /client-configs
+  when: inventory_hostname in groups['openvpn-server']
+
+# Копирование сертификата клиента на клиентскую машину
+- name: fetch request to host
+  fetch:
+    src: /client-configs/files/{{ name }}.ovpn
+    dest: /tmp/{{ name }}.ovpn
+    flat: yes
+  when: inventory_hostname in groups['openvpn-server']
+
+- name: copy request to host
+  copy:
+    src: /tmp/{{ name }}.ovpn
+    dest: /root/{{ name }}.ovpn
+  when: inventory_hostname in groups['openvpn-clients']
+
+# Старт соединения
+#- name: start openvpn
+#  shell: |
+#    openvpn --config {{ name }}.ovpn &
+#  args:
+#    chdir: /root
+#  when: inventory_hostname in groups['openvpn-clients']

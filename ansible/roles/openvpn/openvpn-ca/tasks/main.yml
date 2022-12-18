@@ -1,0 +1,32 @@
+---
+# tasks file for openvpn-ca
+
+# Скачивание необходимых инструментов
+- name: install instruments & plugins
+  apt:
+    name:
+      - easy-rsa
+
+- name: create PKI directory
+  file: path={{ item.path }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }} state=directory
+  loop:
+    - { path: "/easy-rsa", owner: "root", group: "root", mode: "700" }
+
+- stat:
+    path: /easy-rsa/pki
+  register: pki
+
+- name: initialyze PKI in a directory
+  shell: |
+    cd /easy-rsa && /usr/share/easy-rsa/easyrsa init-pki
+  when: not pki.stat.exists
+
+- name: create variables for certification centre
+  template:
+    src: "vars.j2"
+    dest: "/usr/share/easy-rsa/vars"
+
+- name: create crt and private key
+  shell: cd /easy-rsa && /usr/share/easy-rsa/easyrsa --batch "--req-cn=certificate@`date +%s`" build-ca nopass
+
+# Now we have got certification centre's public certificate (/easy-rsa/pki/ca.crt) and private key (/easy-rsa/pki/private/ca.key)

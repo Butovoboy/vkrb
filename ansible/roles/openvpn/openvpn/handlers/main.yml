@@ -1,0 +1,13 @@
+---
+# handlers file for openvpn
+
+# Включение сервиса wireguard
+- name: restart openvpn
+  systemd:
+    name: openvpn-server@server.service
+    enabled: yes
+    state: started
+
+- name: accept sysctl
+  shell: |
+    sysctl -p
