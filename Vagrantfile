@@ -26,12 +26,20 @@ Vagrant.configure("2") do |config|
     end
   end
   config.vm.provision "ansible" do |ansible|
-    ansible.playbook = "playbook.yml"
+    ansible.playbook = "./ansible/playbook.yml"
 #      ansible.groups = {
 #        "gitlab" => ["butovoboy_vm1"],
 #        "mattermost" => ["butovoboy_vm2"],
 #        "redmine" => ["butovoboy_vm3"],
 #        "all_groups:children" => ["gitlab", "mattermost", "redmine"]
 #      }
+  end
+  config.vm.provision "shell" do |s|
+    ssh_pub_key = File.readlines("/home/butovoboy/.ssh/egor.pub").first.strip
+    s.inline = <<-SHELL
+      mkdir /root/.ssh
+      echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+      echo #{ssh_pub_key} >> /root/.ssh/authorized_keys
+    SHELL
   end
 end

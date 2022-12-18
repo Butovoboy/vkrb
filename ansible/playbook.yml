@@ -1,8 +1,54 @@
 ---
+
+- hosts: ca-server
+  become: yes
+  roles:
+    - ./roles/openvpn/openvpn-ca
+
+- hosts: vpn (ca & vpn-server)
+  become: yes
+  roles:
+    - ./roles/openvpn/openvpn
+
+- hosts: all
+  become: yes
+  roles:
+    - ./roles/openvpn/openvpn-client
+
+- hosts: docker (all except ca & vpn-server)
+  become: yes
+  roles:
+    - ./roles/prerequisites
+
 - hosts: all
   become: yes
   roles:
     - ./roles/prerequisites
+
+- hosts: gitlab
+  become: yes
+  roles:
     - ./roles/gitlab
     - ./roles/redmine
     - ./roles/mattermost
+
+- hosts: redmine
+  become: yes
+  roles:
+    - ./roles/redmine
+    - ./roles/mattermost
+      
+- hosts: mattermost
+  become: yes
+  roles:
+    - ./roles/mattermost
+
+- hosts: wazuh-server
+  become: yes
+  roles:
+    - ./roles/wazuh
+
+- hosts: elastic
+  become: yes
+  roles:
+    - ./roles/elastic-kibana
